@@ -46,6 +46,9 @@ void top_level_task(const Task *task, const std::vector<PhysicalRegion> &regions
     char msg2[1000];
     sprintf(msg2, "Error = %.10e\n", sum);
     runtime->print_once(ctx, stdout, msg2);
+
+    solution_data.clean_up();
+    mesh_data.clean_up();
 }
 
 int main(int argc, char *argv[]) {

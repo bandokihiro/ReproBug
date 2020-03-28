@@ -105,8 +105,14 @@ SolutionData::SolutionData(Context ctx, HighLevelRuntime *runtime, Legion::Logge
     LegionData(ctx, runtime, logger_) {}
 
 void SolutionData::clean_up() {
-    runtime->destroy_logical_region(ctx, elem_lr);
+    runtime->destroy_index_partition(ctx, elem_lp.get_index_partition());
+    runtime->destroy_index_partition(ctx, elem_with_halo_lp.get_index_partition());
+
+    runtime->destroy_logical_partition(ctx, elem_lp);
+    runtime->destroy_logical_partition(ctx, elem_with_halo_lp);
+
     runtime->destroy_field_space(ctx, elem_lr.get_field_space());
+    runtime->destroy_logical_region(ctx, elem_lr);
 }
 
 void SolutionData::create_solution_region(const MeshData &mesh_data) {

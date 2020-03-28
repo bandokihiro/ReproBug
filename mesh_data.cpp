@@ -16,12 +16,23 @@ MeshData::MeshData(Context ctx, HighLevelRuntime *runtime, Legion::Logger &logge
     LegionData(ctx, runtime, logger), nPart(-1) {}
 
 void MeshData::clean_up() {
-    runtime->destroy_field_space(ctx, elem_lr.get_field_space());
-    runtime->destroy_index_space(ctx, elem_lr.get_index_space());
-    runtime->destroy_logical_region(ctx, elem_lr);
+    runtime->destroy_index_partition(ctx, elem_lp.get_index_partition());
+    runtime->destroy_index_partition(ctx, elem_with_halo_lp.get_index_partition());
+    runtime->destroy_index_partition(ctx, iface_lp.get_index_partition());
+    runtime->destroy_index_partition(ctx, iface_all_lp.get_index_partition());
 
+    runtime->destroy_logical_partition(ctx, elem_lp);
+    runtime->destroy_logical_partition(ctx, elem_with_halo_lp);
+    runtime->destroy_logical_partition(ctx, iface_lp);
+    runtime->destroy_logical_partition(ctx, iface_all_lp);
+
+    runtime->destroy_field_space(ctx, elem_lr.get_field_space());
     runtime->destroy_field_space(ctx, iface_lr.get_field_space());
+
+    runtime->destroy_index_space(ctx, elem_lr.get_index_space());
     runtime->destroy_index_space(ctx, iface_lr.get_index_space());
+
+    runtime->destroy_logical_region(ctx, elem_lr);
     runtime->destroy_logical_region(ctx, iface_lr);
 }
 
