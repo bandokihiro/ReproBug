@@ -170,11 +170,7 @@ rtype SolutionData::compute_error() const {
     req.add_field(FID_SOL_RESIDUAL);
     index_launcher.add_region_requirement(req);
     // run
-    FutureMap fm =  runtime->execute_index_space(ctx, index_launcher);
+    Future f =  runtime->execute_index_space(ctx, index_launcher, SumReduction<rtype>::REDOP_ID);
     // collect result
-    rtype result = 0.;
-    for (Domain::DomainPointIterator itr(domain); itr; itr++) {
-        result += fm[itr.p].get_result<rtype>();
-    }
-    return result;
+    return f.get_result<rtype>();
 }
