@@ -1,0 +1,46 @@
+#skip_solve = true
+
+[Mesh]
+#file        = "meshes/gorder1_structured/mesh_XY0-1_NXY20.h5"
+#file        = "meshes/gorder1_unstructured/2D_box_33elem.h5"
+#file        = "meshes/gorder1_unstructured/2D_box_528elem.h5"
+#file        = "meshes/gorder1_unstructured/2D_box_2112elem.h5"
+#file        = "meshes/gorder2_structured_perturbed/lvl1_5x5.h5"
+file        = "meshes/gorder2_structured_perturbed/lvl3_20x20.h5"
+npartitions = 32
+
+[Numerics]
+basis = "Legendre2D"
+order = 0
+
+[Stepper]
+type     = "SSPRK3"
+start    = 0.0
+end      = 2e-2
+timestep = 1e-3
+
+[Physics]
+dim   = 2
+gamma = 1.4
+
+[Equation]
+name          = "Euler"
+inviscid_flux = "HLLC"
+init_type     = "IsentropicVortex"
+
+[Output]
+prefix    = "solutions/vortex"
+variables = ["Rho", "VelX", "P", "Mach"]
+#interval  = 200
+
+[Error]
+error_interval = 100
+norm     = "L2"
+variable = "Rho"
+ref_soln = "IsentropicVortex"
+
+#[Diagnosis]
+#interval  = 2
+#variables = ["Rho", "VelX"]
+
+
