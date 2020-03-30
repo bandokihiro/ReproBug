@@ -17,4 +17,4 @@ NRANK_PER_NODE=8
 #export MPI_DSM_DISTRIBUTE=0
 #export GASNET_ODP_VERBOSE=0
 
-mpiexec -np $NRANK -ppn $NRANK_PER_NODE $EXEC $FLAGS -ll:cpu $NCPU_PER_RANK |& tee logs/log.out
+mpiexec -np $NRANK -ppn $NRANK_PER_NODE $EXEC $FLAGS -ll:cpu $NCPU_PER_RANK
