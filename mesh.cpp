@@ -38,7 +38,7 @@ Mesh::Mesh(const toml::value &input_info) : partitioned(false) {
 }
 
 void Mesh::read_mesh(const string &mesh_file_name) {
-    try {
+//    try {
         // turn off the auto-printing when failure occurs
         hsize_t dims[2]; // buffer to store size in each dimensions
 
@@ -165,22 +165,22 @@ void Mesh::read_mesh(const string &mesh_file_name) {
             nBFG = 0;
             nBFace = 0;
         }
-    }
-
-        // catch failure caused by the H5File operations
-    catch( FileIException error ) {
-        error.printErrorStack();
-    }
-
-        // catch failure caused by the DataSet operations
-    catch( DataSetIException error ) {
-        error.printErrorStack();
-    }
-
-        // catch failure caused by the DataSpace operations
-    catch( DataSpaceIException error ) {
-        error.printErrorStack();
-    }
+//    }
+//
+//        // catch failure caused by the H5File operations
+//    catch( FileIException error ) {
+//        error.printErrorStack();
+//    }
+//
+//        // catch failure caused by the DataSet operations
+//    catch( DataSetIException error ) {
+//        error.printErrorStack();
+//    }
+//
+//        // catch failure caused by the DataSpace operations
+//    catch( DataSpaceIException error ) {
+//        error.printErrorStack();
+//    }
 }
 
 void Mesh::read_boundary_faces(H5::H5File &file) {
