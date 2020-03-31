@@ -20,7 +20,7 @@ void top_level_task(const Task *task, const std::vector<PhysicalRegion> &regions
     stringstream msg;
     auto input_info = toml::parse("input.toml");
     auto nParts = toml::find<int>(input_info, "Mesh", "npartitions");
-    auto nIter = toml::find<int>(input_info, "Mesh", "nIter");
+    auto nIter = toml::find<int>(input_info, "Mesh", "iter");
     auto mesh_file = toml::find<string>(input_info, "Mesh", "file");
     Mesh mesh(input_info);
     mesh.partition(nParts);

@@ -112,7 +112,7 @@ struct in_range
 template<char L, char U> constexpr char in_range<L, U>::upper;
 template<char L, char U> constexpr char in_range<L, U>::lower;
 
-// keep iterator if `Combinator` matches. otherwise, increment `nIter` by 1 char.
+// keep iterator if `Combinator` matches. otherwise, increment `iter` by 1 char.
 // for detecting invalid characters, like control sequences in toml string.
 template<typename Combinator>
 struct exclude
@@ -138,7 +138,7 @@ struct exclude
     }
 };
 
-// increment `nIter`, if matches. otherwise, just return empty string.
+// increment `iter`, if matches. otherwise, just return empty string.
 template<typename Combinator>
 struct maybe
 {
