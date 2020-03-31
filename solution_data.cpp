@@ -108,7 +108,7 @@ void check_task(const Task *task,  const vector<PhysicalRegion> &regions, Contex
             for (int i=0; i<N_REDOP; i++) {
                 const rtype *ptr = acc_res.ptr(itr.p);
                 const rtype *ptr_ref = acc_ref.ptr(itr.p);
-                const rtype ref_value = (arg.iteration+1)*ptr_ref[i]/arg.nIter;
+                const rtype ref_value = (arg.iteration+1)*ptr_ref[i];
                 rtype err = fabs(ptr[i] - ref_value) / ref_value;
                 assert(err < 1e-12);
             }
