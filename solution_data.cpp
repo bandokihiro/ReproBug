@@ -25,10 +25,15 @@ using namespace std;
 void zero_field_task(const Task *task, const std::vector<PhysicalRegion> &regions,
                      Context ctx, Runtime *runtime) {
     AffAccWDrtype acc(regions[0], SolutionData::FID_SOL_RESIDUAL, N_REDOP*sizeof(rtype));
+    AffAccWDrtype acc_ref(regions[0], SolutionData::FID_SOL_REFERENCE, N_REDOP*sizeof(rtype));
     Domain domain = runtime->get_index_space_domain(ctx, task->regions[0].region.get_index_space());
     for (Domain::DomainPointIterator itr(domain); itr; itr++) {
         rtype *ptr = acc.ptr(itr.p);
-        for (int i=0; i<N_REDOP; i++) ptr[i] = 0.;
+        rtype *ptr_ref = acc_ref.ptr(itr.p);
+        for (int i=0; i<N_REDOP; i++) {
+            ptr[i] = 0.;
+            ptr_ref[i] = 0.;
+        }
     }
 }
 
@@ -76,6 +81,41 @@ void compute_iface_residual_task(const Task *task,  const vector<PhysicalRegion>
     }
 }
 
+void copy_to_reference_task(const Task *task,  const vector<PhysicalRegion> &regions,
+        Context ctx, Runtime *runtime) {
+    AffAccROrtype acc(regions[0], SolutionData::FID_SOL_RESIDUAL, N_REDOP*sizeof(rtype));
+    AffAccRWrtype acc_ref(regions[1], SolutionData::FID_SOL_REFERENCE, N_REDOP*sizeof(rtype));
+    Domain domain = runtime->get_index_space_domain(ctx, task->regions[0].region.get_index_space());
+
+    for (Domain::DomainPointIterator itr(domain); itr; itr++) {
+        const rtype *ptr = acc.ptr(itr.p);
+        rtype *ptr_ref = acc_ref.ptr(itr.p);
+        for (int i=0; i<N_REDOP; i++) {
+            ptr_ref[i] = ptr[i];
+        }
+    }
+}
+
+void check_task(const Task *task,  const vector<PhysicalRegion> &regions, Context ctx, Runtime *runtime) {
+    int iteration = *(const int *)task->args;
+    if (iteration>0) {
+        AffAccROrtype acc_res(regions[0], SolutionData::FID_SOL_RESIDUAL, N_REDOP*sizeof(rtype));
+        AffAccROrtype acc_ref(regions[0], SolutionData::FID_SOL_REFERENCE, N_REDOP*sizeof(rtype));
+        Domain domain = runtime->get_index_space_domain(ctx, task->regions[0].region.get_index_space());
+        for (Domain::DomainPointIterator itr(domain); itr; itr++) {
+            for (int i=0; i<N_REDOP; i++) {
+                const rtype *ptr = acc_res.ptr(itr.p);
+                const rtype *ptr_ref = acc_ref.ptr(itr.p);
+                rtype err = fabs(ptr[i] - (iteration+1)*ptr_ref[i]) / ptr_ref[i];
+                assert(err < 1e-12);
+            }
+        }
+        if (task->index_point == Point<1>(0)) {
+            cout << "Checked result of iteration " << iteration << endl;
+        }
+    }
+}
+
 void SolutionData::register_tasks() {
     {
         TaskVariantRegistrar registrar(ZERO_FIELD_TASK_ID, "zero_field_task");
@@ -99,6 +139,18 @@ void SolutionData::register_tasks() {
         Runtime::preregister_task_variant<compute_iface_residual_task> (registrar,
             "compute_iface_residual_task");
     }
+    {
+        TaskVariantRegistrar registrar(COPY_TO_REFERENCE_TASK_ID, "copy_to_reference_task");
+        registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
+        registrar.set_leaf();
+        Runtime::preregister_task_variant<copy_to_reference_task> (registrar, "copy_to_reference_task");
+    }
+    {
+        TaskVariantRegistrar registrar(CHECK_TASK_ID, "check_task");
+        registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
+        registrar.set_leaf();
+        Runtime::preregister_task_variant<check_task> (registrar, "check_task");
+    }
 }
 
 SolutionData::SolutionData(Context ctx, HighLevelRuntime *runtime, Legion::Logger &logger_) :
@@ -120,7 +172,10 @@ void SolutionData::create_solution_region(const MeshData &mesh_data) {
     FieldAllocator allocator = runtime->create_field_allocator(ctx, fs);
 
     allocator.allocate_field(N_REDOP*sizeof(rtype), FID_SOL_RESIDUAL);
+    allocator.allocate_field(N_REDOP*sizeof(rtype), FID_SOL_REFERENCE);
+
     runtime->attach_name(fs, FID_SOL_RESIDUAL, "sol_residual");
+    runtime->attach_name(fs, FID_SOL_REFERENCE, "sol_reference");
 
     elem_lr = runtime->create_logical_region(ctx, mesh_data.elem_lr.get_index_space(), fs);
     runtime->attach_name(elem_lr, "sol_elem_logical_region");
@@ -141,6 +196,7 @@ void SolutionData::zero_field() {
     // solution region
     RegionRequirement req(elem_lp, 0, WRITE_DISCARD, EXCLUSIVE, elem_lr);
     req.add_field(FID_SOL_RESIDUAL);
+    req.add_field(FID_SOL_REFERENCE);
     index_launcher.add_region_requirement(req);
     // run
     runtime->execute_index_space(ctx, index_launcher);
@@ -160,6 +216,29 @@ void SolutionData::compute_iface_residual(const MeshData &mesh_data) {
     req.add_field(SolutionData::FID_SOL_RESIDUAL);
     index_launcher.add_region_requirement(req);
     // run
+    runtime->execute_index_space(ctx, index_launcher);
+}
+
+void SolutionData::copy_to_reference() {
+    IndexLauncher index_launcher(COPY_TO_REFERENCE_TASK_ID, domain, TaskArgument(), ArgumentMap());
+
+    RegionRequirement req(elem_lp, 0, READ_ONLY, EXCLUSIVE, elem_lr);
+    req.add_field(FID_SOL_RESIDUAL);
+    index_launcher.add_region_requirement(req);
+
+    req = RegionRequirement(elem_lp, 0, READ_WRITE, EXCLUSIVE, elem_lr);
+    req.add_field(FID_SOL_REFERENCE);
+    index_launcher.add_region_requirement(req);
+
+    runtime->execute_index_space(ctx, index_launcher);
+}
+
+void SolutionData::check(const int iteration) {
+    IndexLauncher index_launcher(CHECK_TASK_ID, domain, TaskArgument(&iteration, sizeof(int)), ArgumentMap());
+    RegionRequirement req(elem_lp, 0, READ_ONLY, EXCLUSIVE, elem_lr);
+    req.add_field(SolutionData::FID_SOL_RESIDUAL);
+    req.add_field(SolutionData::FID_SOL_REFERENCE);
+    index_launcher.add_region_requirement(req);
     runtime->execute_index_space(ctx, index_launcher);
 }
 

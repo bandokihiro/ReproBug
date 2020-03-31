@@ -18,6 +18,7 @@ class SolutionData : public LegionData {
      */
     enum FieldIDs {
         FID_SOL_RESIDUAL, //!< storage for residual
+        FID_SOL_REFERENCE,
     };
 
     /*! \brief Pre-register all solution related tasks
@@ -50,6 +51,10 @@ class SolutionData : public LegionData {
     void zero_field();
 
     void compute_iface_residual(const MeshData &mesh_data);
+
+    void copy_to_reference();
+
+    void check(const int iteration);
 
     rtype compute_error() const;
 
