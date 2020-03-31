@@ -1795,7 +1795,7 @@ parse_array_table_key(location<Container>& loc)
     }
 }
 
-// parse table body (key-value pairs until the iter hits the next [tablekey])
+// parse table body (key-value pairs until the nIter hits the next [tablekey])
 template<typename Value, typename Container>
 result<typename Value::table_type, std::string>
 parse_ml_table(location<Container>& loc)

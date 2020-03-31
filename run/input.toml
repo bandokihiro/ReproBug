@@ -8,4 +8,4 @@
 #file        = "meshes/gorder2_structured_perturbed/lvl1_5x5.h5"
 file        = "meshes/gorder2_structured_perturbed/lvl3_20x20.h5"
 npartitions = 32
-iter        = 60
+nIter        = 60

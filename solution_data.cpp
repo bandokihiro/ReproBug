@@ -51,6 +51,8 @@ rtype compute_error_task(const Task *task, const std::vector<PhysicalRegion> &re
 
 void compute_iface_residual_task(const Task *task,  const vector<PhysicalRegion> &regions,
                                  Context ctx, Runtime *runtime) {
+    int nIter = *(const int *)task->args;
+
     AffAccROPoint1 acc_face_elemID[2];
     acc_face_elemID[0] = AffAccROPoint1(regions[0], MeshData::FID_MESH_IFACE_ELEMLID,
                                         sizeof(Point<1>));
@@ -68,7 +70,7 @@ void compute_iface_residual_task(const Task *task,  const vector<PhysicalRegion>
 
         vector<rtype> tmp(N_REDOP, 0.);
         int i0 = (int) itr.p[0];
-        for (int k=0; k<N_REDOP; k++) tmp[k] = (rtype) (i0+k) / (rtype) (i0+1);
+        for (int k=0; k<N_REDOP; k++) tmp[k] = (rtype) (i0+k) / (rtype) (i0+1) / (rtype) nIter;
 
         // update left element residual
         ReductionSum<N_REDOP>::LHS *lhs = acc_residual.ptr(elemL);
@@ -97,8 +99,8 @@ void copy_to_reference_task(const Task *task,  const vector<PhysicalRegion> &reg
 }
 
 void check_task(const Task *task,  const vector<PhysicalRegion> &regions, Context ctx, Runtime *runtime) {
-    int iteration = *(const int *)task->args;
-    if (iteration>0) {
+    Args arg = *(const Args *)task->args;
+    if (arg.iteration>0) {
         AffAccROrtype acc_res(regions[0], SolutionData::FID_SOL_RESIDUAL, N_REDOP*sizeof(rtype));
         AffAccROrtype acc_ref(regions[0], SolutionData::FID_SOL_REFERENCE, N_REDOP*sizeof(rtype));
         Domain domain = runtime->get_index_space_domain(ctx, task->regions[0].region.get_index_space());
@@ -106,12 +108,13 @@ void check_task(const Task *task,  const vector<PhysicalRegion> &regions, Contex
             for (int i=0; i<N_REDOP; i++) {
                 const rtype *ptr = acc_res.ptr(itr.p);
                 const rtype *ptr_ref = acc_ref.ptr(itr.p);
-                rtype err = fabs(ptr[i] - (iteration+1)*ptr_ref[i]) / ptr_ref[i];
+                const rtype ref_value = (arg.iteration+1)*ptr_ref[i]/arg.nIter;
+                rtype err = fabs(ptr[i] - ref_value) / ref_value;
                 assert(err < 1e-12);
             }
         }
         if (task->index_point == Point<1>(0)) {
-            cout << "Checked result of iteration " << iteration << endl;
+            cout << "Checked result of iteration " << arg.iteration << endl;
         }
     }
 }
@@ -202,8 +205,9 @@ void SolutionData::zero_field() {
     runtime->execute_index_space(ctx, index_launcher);
 }
 
-void SolutionData::compute_iface_residual(const MeshData &mesh_data) {
-    IndexLauncher index_launcher(COMPUTE_IFACE_RESIDUAL_TASK_ID, domain, TaskArgument(), ArgumentMap());
+void SolutionData::compute_iface_residual(const int nIter, const MeshData &mesh_data) {
+    IndexLauncher index_launcher(COMPUTE_IFACE_RESIDUAL_TASK_ID, domain,
+            TaskArgument(&nIter, sizeof(int)), ArgumentMap());
     // mesh region: iface data
     RegionRequirement req(mesh_data.iface_lp, 0, READ_ONLY, EXCLUSIVE, mesh_data.iface_lr);
     vector<FieldID> fields{MeshData::FID_MESH_IFACE_ELEMLID,
@@ -233,8 +237,11 @@ void SolutionData::copy_to_reference() {
     runtime->execute_index_space(ctx, index_launcher);
 }
 
-void SolutionData::check(const int iteration) {
-    IndexLauncher index_launcher(CHECK_TASK_ID, domain, TaskArgument(&iteration, sizeof(int)), ArgumentMap());
+void SolutionData::check(const int iteration, const int nIter) {
+    Args arg;
+    arg.iteration = iteration;
+    arg.nIter = nIter;
+    IndexLauncher index_launcher(CHECK_TASK_ID, domain, TaskArgument(&arg, sizeof(Args)), ArgumentMap());
     RegionRequirement req(elem_lp, 0, READ_ONLY, EXCLUSIVE, elem_lr);
     req.add_field(SolutionData::FID_SOL_RESIDUAL);
     req.add_field(SolutionData::FID_SOL_REFERENCE);

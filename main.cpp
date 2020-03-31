@@ -20,7 +20,7 @@ void top_level_task(const Task *task, const std::vector<PhysicalRegion> &regions
     stringstream msg;
     auto input_info = toml::parse("input.toml");
     auto nParts = toml::find<int>(input_info, "Mesh", "npartitions");
-    auto iter = toml::find<int>(input_info, "Mesh", "iter");
+    auto nIter = toml::find<int>(input_info, "Mesh", "nIter");
     auto mesh_file = toml::find<string>(input_info, "Mesh", "file");
     Mesh mesh(input_info);
     mesh.partition(nParts);
@@ -39,12 +39,12 @@ void top_level_task(const Task *task, const std::vector<PhysicalRegion> &regions
     runtime->print_once(ctx, stdout, "Solution region created\n");
     solution_data.zero_field();
 
-    for (int i=0; i<iter; i++) {
-        solution_data.compute_iface_residual(mesh_data);
+    for (int i=0; i<nIter; i++) {
+        solution_data.compute_iface_residual(nIter, mesh_data);
         if (i==0) {
             solution_data.copy_to_reference();
         }
-        solution_data.check(i);
+        solution_data.check(i, nIter);
     }
     rtype sum = solution_data.compute_error();
     char msg2[1000];

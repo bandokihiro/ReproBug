@@ -16,7 +16,7 @@ namespace toml
 namespace detail
 {
 
-// helper function to avoid std::string(0, 'c') or std::string(iter, iter)
+// helper function to avoid std::string(0, 'c') or std::string(nIter, nIter)
 template<typename Iterator>
 std::string make_string(Iterator first, Iterator last)
 {
@@ -92,7 +92,7 @@ struct location final : public region_base
     bool is_ok() const noexcept override {return static_cast<bool>(source_);}
     char front() const noexcept override {return *iter_;}
 
-    // this const prohibits codes like `++(loc.iter())`.
+    // this const prohibits codes like `++(loc.nIter())`.
     const const_iterator iter()  const noexcept {return iter_;}
 
     const_iterator begin() const noexcept {return source_->cbegin();}
@@ -103,7 +103,7 @@ struct location final : public region_base
     // it becomes intolerably slow because each time it generates error messages,
     // it counts '\n' from thousands of characters. To workaround it, I decided
     // to introduce `location::line_number_` member variable and synchronize it
-    // to the location changes the point to look. So an overload of `iter()`
+    // to the location changes the point to look. So an overload of `nIter()`
     // which returns mutable reference is removed and `advance()`, `retrace()`
     // and `reset()` is added.
     void advance(difference_type n = 1) noexcept
@@ -124,12 +124,12 @@ struct location final : public region_base
     {
         // since c++11, std::distance works in both ways for random-access
         // iterators and returns a negative value if `first > last`.
-        if(0 <= std::distance(rollback, this->iter_)) // rollback < iter
+        if(0 <= std::distance(rollback, this->iter_)) // rollback < nIter
         {
             this->line_number_ -= static_cast<std::size_t>(
                     std::count(rollback, this->iter_, '\n'));
         }
-        else // iter < rollback [[unlikely]]
+        else // nIter < rollback [[unlikely]]
         {
             this->line_number_ += static_cast<std::size_t>(
                     std::count(this->iter_, rollback, '\n'));
@@ -332,7 +332,7 @@ struct region final : public region_base
                 {
                     iter = std::prev(iter);
 
-                    // range [line_start, iter) represents the previous line
+                    // range [line_start, nIter) represents the previous line
                     const auto line_start   = std::find(
                             rev_iter(iter), rev_iter(this->begin()), '\n').base();
                     const auto comment_found = std::find(line_start, iter, '#');

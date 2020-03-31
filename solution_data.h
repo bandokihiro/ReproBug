@@ -8,6 +8,11 @@
 #include "legion.h"
 #include "mesh_data.h"
 
+struct Args {
+    int iteration;
+    int nIter;
+};
+
 /*! \brief Class to hold solution related regions
  *
  */
@@ -50,11 +55,11 @@ class SolutionData : public LegionData {
 
     void zero_field();
 
-    void compute_iface_residual(const MeshData &mesh_data);
+    void compute_iface_residual(const int nIter, const MeshData &mesh_data);
 
     void copy_to_reference();
 
-    void check(const int iteration);
+    void check(const int iteration, const int nIter);
 
     rtype compute_error() const;
 
