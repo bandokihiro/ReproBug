@@ -1,10 +1,13 @@
 #!/bin/bash
 
 set -e
+LEGION_ROOT=/home/steven/Documents/Research/legion/release
+METIS_ROOT=/home/steven/Documents/Programs/metis-5.1.0
+HDF5_ROOT=/usr/lib/x86_64-linux-gnu/hdf5/serial
 
 cmake \
     -DCMAKE_BUILD_TYPE=Release \
-    -DMETIS_ROOT=/home/kihiro/Softwares/metis-5.1.0 \
-    -DLEGION_ROOT=/home/kihiro/Softwares/legion_master_release \
-    -DHDF5_ROOT=/usr/lib/x86_64-linux-gnu/hdf5/serial \
+    -DMETIS_ROOT=$METIS_ROOT \
+    -DLEGION_ROOT=$LEGION_ROOT \
+    -DHDF5_ROOT=$HDF5_ROOT \
     ..

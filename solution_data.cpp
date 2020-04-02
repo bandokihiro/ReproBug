@@ -25,22 +25,12 @@ using namespace std;
 void zero_field_task(const Task *task, const std::vector<PhysicalRegion> &regions,
                      Context ctx, Runtime *runtime) {
     AffAccWDrtype acc(regions[0], SolutionData::FID_SOL_RESIDUAL, N_REDOP*sizeof(rtype));
-    Domain domain = runtime->get_index_space_domain(ctx, task->regions[0].region.get_index_space());
-    for (Domain::DomainPointIterator itr(domain); itr; itr++) {
-        rtype *ptr = acc.ptr(itr.p);
-        for (int i=0; i<N_REDOP; i++) ptr[i] = 0.;
-    }
 }
 
 rtype compute_error_task(const Task *task, const std::vector<PhysicalRegion> &regions,
                          Context ctx, Runtime *runtime) {
     AffAccROrtype acc(regions[0], SolutionData::FID_SOL_RESIDUAL, N_REDOP*sizeof(rtype));
-    Domain domain = runtime->get_index_space_domain(ctx, task->regions[0].region.get_index_space());
     rtype result = 0.;
-    for (Domain::DomainPointIterator itr(domain); itr; itr++) {
-        const rtype *ptr = acc.ptr(itr.p);
-        for (int i=0; i<N_REDOP; i++) result += ptr[i];
-    }
     return result;
 }
 
@@ -172,5 +162,7 @@ rtype SolutionData::compute_error() const {
     // run
     Future f =  runtime->execute_index_space(ctx, index_launcher, SumReduction<rtype>::REDOP_ID);
     // collect result
-    return f.get_result<rtype>();
+    rtype result = 0.0;
+    result = f.get_result<rtype>();
+    return result;
 }

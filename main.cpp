@@ -40,7 +40,9 @@ void top_level_task(const Task *task, const std::vector<PhysicalRegion> &regions
     solution_data.zero_field();
 
     for (int i=0; i<iter; i++) {
-        solution_data.compute_iface_residual(mesh_data);
+        solution_data.zero_field();
+        rtype sum = solution_data.compute_error();
+        std::cout << "iter " << i << std::endl;
     }
     rtype sum = solution_data.compute_error();
     char msg2[1000];
