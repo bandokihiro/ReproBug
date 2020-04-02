@@ -49,8 +49,6 @@ class SolutionData : public LegionData {
 
     void zero_field();
 
-    void compute_iface_residual(const MeshData &mesh_data);
-
     rtype compute_error() const;
 
     Legion::LogicalRegion elem_lr; //!< element logical region

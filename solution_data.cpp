@@ -34,38 +34,6 @@ rtype compute_error_task(const Task *task, const std::vector<PhysicalRegion> &re
     return result;
 }
 
-void compute_iface_residual_task(const Task *task,  const vector<PhysicalRegion> &regions,
-                                 Context ctx, Runtime *runtime) {
-    AffAccROPoint1 acc_face_elemID[2];
-    acc_face_elemID[0] = AffAccROPoint1(regions[0], MeshData::FID_MESH_IFACE_ELEMLID,
-                                        sizeof(Point<1>));
-    acc_face_elemID[1] = AffAccROPoint1(regions[0], MeshData::FID_MESH_IFACE_ELEMRID,
-                                        sizeof(Point<1>));
-    // reduction accessor for the residual
-    ReductionAccessor<ReductionSum<N_REDOP>, true, // exclusive
-            1, coord_t, Realm::AffineAccessor<ReductionSum<N_REDOP>::LHS, 1, coord_t> >
-            acc_residual(regions[1], SolutionData::FID_SOL_RESIDUAL, 1);
-
-    Domain domain = runtime->get_index_space_domain(ctx, task->regions[0].region.get_index_space());
-    for (Domain::DomainPointIterator itr(domain); itr; itr++) {
-        Point<1> elemL = acc_face_elemID[0][*itr];
-        Point<1> elemR = acc_face_elemID[1][*itr];
-
-        vector<rtype> tmp(N_REDOP, 0.);
-        int i0 = (int) itr.p[0];
-        for (int k=0; k<N_REDOP; k++) tmp[k] = (rtype) (i0+k) / (rtype) (i0+1);
-
-        // update left element residual
-        ReductionSum<N_REDOP>::LHS *lhs = acc_residual.ptr(elemL);
-        ReductionSum<N_REDOP>::RHS rhs(tmp);
-        ReductionSum<N_REDOP>::apply<true>(*lhs, rhs);
-        // update right element residual
-        lhs = acc_residual.ptr(elemR);
-        rhs = ReductionSum<N_REDOP>::RHS(tmp);
-        ReductionSum<N_REDOP>::apply<true>(*lhs, rhs);
-    }
-}
-
 void SolutionData::register_tasks() {
     {
         TaskVariantRegistrar registrar(ZERO_FIELD_TASK_ID, "zero_field_task");
@@ -80,14 +48,6 @@ void SolutionData::register_tasks() {
         registrar.set_leaf();
         Runtime::preregister_task_variant<rtype, compute_error_task> (registrar,
             "compute_error");
-    }
-    {
-        TaskVariantRegistrar registrar(COMPUTE_IFACE_RESIDUAL_TASK_ID,
-            "compute_iface_residual_task");
-        registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
-        registrar.set_leaf();
-        Runtime::preregister_task_variant<compute_iface_residual_task> (registrar,
-            "compute_iface_residual_task");
     }
 }
 
@@ -131,23 +91,6 @@ void SolutionData::zero_field() {
     // solution region
     RegionRequirement req(elem_lp, 0, WRITE_DISCARD, EXCLUSIVE, elem_lr);
     req.add_field(FID_SOL_RESIDUAL);
-    index_launcher.add_region_requirement(req);
-    // run
-    runtime->execute_index_space(ctx, index_launcher);
-}
-
-void SolutionData::compute_iface_residual(const MeshData &mesh_data) {
-    IndexLauncher index_launcher(COMPUTE_IFACE_RESIDUAL_TASK_ID, domain, TaskArgument(), ArgumentMap());
-    // mesh region: iface data
-    RegionRequirement req(mesh_data.iface_lp, 0, READ_ONLY, EXCLUSIVE, mesh_data.iface_lr);
-    vector<FieldID> fields{MeshData::FID_MESH_IFACE_ELEMLID,
-                           MeshData::FID_MESH_IFACE_ELEMRID,
-                          };
-    req.add_fields(fields);
-    index_launcher.add_region_requirement(req);
-    // solution region: residual
-    req = RegionRequirement(elem_with_halo_lp, 0, 1, EXCLUSIVE, elem_lr);
-    req.add_field(SolutionData::FID_SOL_RESIDUAL);
     index_launcher.add_region_requirement(req);
     // run
     runtime->execute_index_space(ctx, index_launcher);
