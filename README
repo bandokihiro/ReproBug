@@ -1,0 +1,21 @@
+How to use code:
+
+1) Edit configure.sh with the locations of legion, metis, and hdf5
+
+2) Edit configure.sh and set the build type (release or debug)
+
+2) Create a build directory
+
+3) Run configure.sh in the build directory
+
+4) compile the code with make install
+
+5) Run the executable in the test directory with 
+    ../exec -ll:cpu 1
+
+6) input.toml can be edited to change the number of partitions or the mesh.
+
+Issues:
+- The code stalls in the SolutionData::compute_error function in solution_data.cpp during the line f.get_result<rtype>() at a random iteration.
+- This stall always occurs on the last subregion.
+- I haven't been able to reproduce the stall in debug mode.

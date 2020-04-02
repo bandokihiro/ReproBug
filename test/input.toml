@@ -1,0 +1,11 @@
+#skip_solve = true
+[Mesh]
+#file        = "meshes/gorder1_structured/mesh_XY0-1_NXY20.h5"
+#file        = "meshes/gorder1_unstructured/2D_box_33elem.h5"
+#file        = "meshes/gorder1_unstructured/2D_box_528elem.h5"
+#file        = "meshes/gorder1_unstructured/2D_box_2112elem.h5"
+#file        = "meshes/gorder2_structured_perturbed/lvl1_5x5.h5"
+#file        = "meshes/gorder2_structured_perturbed/lvl3_20x20.h5"
+file = "meshes/2D_channel_4.h5"
+npartitions = 8
+iter        = 10000000
