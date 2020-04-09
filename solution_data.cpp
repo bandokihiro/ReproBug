@@ -29,11 +29,14 @@ void tag_left_right_element_task(const Task *task, const std::vector<PhysicalReg
             (const typename SolutionData::TagLeftRightElementArgs*)task->args;
     const LogicalPartition priv_elem_lp = args->priv_elem_lp;
     const LogicalPartition shared_elem_lp = args->shared_elem_lp;
+    const LogicalPartition ghost_elem_lp = args->ghost_elem_lp;
     // get the current sub-region for both partitions
     const LogicalRegion
             priv_elem_lsr(runtime->get_logical_subregion_by_color(priv_elem_lp, task->index_point));
     const LogicalRegion
             shared_elem_lsr(runtime->get_logical_subregion_by_color(shared_elem_lp, task->index_point));
+    const LogicalRegion
+            ghost_elem_lsr(runtime->get_logical_subregion_by_color(ghost_elem_lp, task->index_point));
 
     // accessors for left and right element ID
     AffAccROPoint1 acc_elem_ID[2];
@@ -64,6 +67,7 @@ void tag_left_right_element_task(const Task *task, const std::vector<PhysicalReg
             acc_elem_type[1][*itr] = ElemType::Shared;
         }
         else {
+            assert(!runtime->safe_cast(ctx, elemR, ghost_elem_lsr).is_null());
             acc_elem_type[1][*itr] = ElemType::Ghost;
         }
     }
@@ -281,7 +285,7 @@ void SolutionData::create_solution_region(const MeshData &mesh_data) {
     domain = Domain::from_rect<1>(Arrays::Rect<1>(Arrays::Point<1>(0),
             Arrays::Point<1>(mesh_data.nPart-1)));
 
-    TagLeftRightElementArgs args(priv_elem_lp, shared_elem_lp);
+    TagLeftRightElementArgs args(priv_elem_lp, shared_elem_lp, ghost_elem_lp);
     IndexLauncher index_launcher(TAG_LEFT_RIGHT_ELEMENT_TASK_ID, domain,
             TaskArgument(&args, sizeof(TagLeftRightElementArgs)), ArgumentMap());
     // left and right element ID

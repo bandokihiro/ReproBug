@@ -45,11 +45,13 @@ class SolutionData : public LegionData {
     void clean_up();
 
     struct TagLeftRightElementArgs {
-        TagLeftRightElementArgs(Legion::LogicalPartition priv, Legion::LogicalPartition shared)
-                : priv_elem_lp(priv), shared_elem_lp(shared) {}
+        TagLeftRightElementArgs(Legion::LogicalPartition priv, Legion::LogicalPartition shared,
+                Legion::LogicalPartition ghost)
+                : priv_elem_lp(priv), shared_elem_lp(shared), ghost_elem_lp(ghost) {}
 
         Legion::LogicalPartition priv_elem_lp;
         Legion::LogicalPartition shared_elem_lp;
+        Legion::LogicalPartition ghost_elem_lp;
     };
 
     /*! \brief Create solutions regions
