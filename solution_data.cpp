@@ -371,5 +371,5 @@ rtype SolutionData::compute_error() const {
     // run
     Future f =  runtime->execute_index_space(ctx, index_launcher, SumReduction<rtype>::REDOP_ID);
     // collect result
-    return f.get_result<rtype>();
+    return f.get_result<rtype>(true);
 }

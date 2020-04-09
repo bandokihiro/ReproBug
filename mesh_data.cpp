@@ -72,12 +72,12 @@ void MeshData::init_mesh_region_elem(const Mesh &mesh) {
 
     InlineLauncher inline_launcher(req);
     PhysicalRegion pr = runtime->map_region(ctx, inline_launcher);
-    pr.wait_until_valid();
+    pr.wait_until_valid(true);
 
-    const AccWDPoint1 acc_partid(pr, FID_MESH_ELEM_PARTID);
+    const AccWDPoint1 acc_partid(pr, FID_MESH_ELEM_PARTID, sizeof(Point<1>), false, true);
     const FieldAccessor< WRITE_DISCARD, bitset<N_SUBREGIONS_MAX>, 1, coord_t,
         Realm::AffineAccessor<bitset<N_SUBREGIONS_MAX>, 1, coord_t> >
-            acc_ghost_bitmask(pr, FID_MESH_ELEM_GHOST_BITMASK, sizeof(bitset<N_SUBREGIONS_MAX>));
+            acc_ghost_bitmask(pr, FID_MESH_ELEM_GHOST_BITMASK, sizeof(bitset<N_SUBREGIONS_MAX>), false, true);
 
     // initialize
     int ielem = 0;
@@ -121,12 +121,12 @@ void MeshData::init_mesh_region_iFace(const Mesh &mesh) {
 
     InlineLauncher inline_launcher(req);
     PhysicalRegion pr = runtime->map_region(ctx, inline_launcher);
-    pr.wait_until_valid();
+    pr.wait_until_valid(true);
 
     // accessors
     AccWDPoint1  acc_point[2];
-    acc_point[0] = AccWDPoint1(pr, FID_MESH_IFACE_ELEMLID);
-    acc_point[1] = AccWDPoint1(pr, FID_MESH_IFACE_ELEMRID);
+    acc_point[0] = AccWDPoint1(pr, FID_MESH_IFACE_ELEMLID, sizeof(Point<1>), false, true);
+    acc_point[1] = AccWDPoint1(pr, FID_MESH_IFACE_ELEMRID, sizeof(Point<1>), false, true);
 
     // initialize
     int iface = 0;
@@ -248,7 +248,7 @@ void MeshData::reinit_mesh_region(const Mesh &mesh) {
 
             const FieldAccessor< READ_WRITE, bitset<N_SUBREGIONS_MAX>, 1, coord_t,
                 Realm::AffineAccessor<bitset<N_SUBREGIONS_MAX>, 1, coord_t> >
-                    acc_ghost_bitmask(pr, FID_MESH_ELEM_GHOST_BITMASK, sizeof(bitset<N_SUBREGIONS_MAX>));
+                    acc_ghost_bitmask(pr, FID_MESH_ELEM_GHOST_BITMASK, sizeof(bitset<N_SUBREGIONS_MAX>), false, true);
             Domain d = runtime->get_index_space_domain(ctx, ghost_elem_lsr.get_index_space());
             for (Domain::DomainPointIterator i(d); i; i++) {
                 acc_ghost_bitmask[*i][p[0]] = true;
@@ -273,7 +273,7 @@ void MeshData::reinit_mesh_region(const Mesh &mesh) {
         // more sophisticated bitmask method
         const FieldAccessor< READ_ONLY, bitset<N_SUBREGIONS_MAX>, 1, coord_t,
                 Realm::AffineAccessor<bitset<N_SUBREGIONS_MAX>, 1, coord_t> >
-                acc_ghost_bitmask(pr, FID_MESH_ELEM_GHOST_BITMASK, sizeof(bitset<N_SUBREGIONS_MAX>));
+                acc_ghost_bitmask(pr, FID_MESH_ELEM_GHOST_BITMASK, sizeof(bitset<N_SUBREGIONS_MAX>), false, true);
         stable_sort(new_elem_idx.begin(), new_elem_idx.end(),
                 [&mesh, &acc_ghost_bitmask](int a, int b) {
                         if (mesh.elem_part_id[a]!=mesh.elem_part_id[b]) {
