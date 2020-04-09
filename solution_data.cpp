@@ -22,6 +22,53 @@ using namespace Legion;
 using namespace LegionRuntime;
 using namespace std;
 
+void tag_left_right_element_task(const Task *task, const std::vector<PhysicalRegion> &regions,
+                                 Context ctx, Runtime *runtime) {
+    // get private and shared logical partitions
+    const typename SolutionData::TagLeftRightElementArgs *args =
+            (const typename SolutionData::TagLeftRightElementArgs*)task->args;
+    const LogicalPartition priv_elem_lp = args->priv_elem_lp;
+    const LogicalPartition shared_elem_lp = args->shared_elem_lp;
+    // get the current sub-region for both partitions
+    const LogicalRegion
+            priv_elem_lsr(runtime->get_logical_subregion_by_color(priv_elem_lp, task->index_point));
+    const LogicalRegion
+            shared_elem_lsr(runtime->get_logical_subregion_by_color(shared_elem_lp, task->index_point));
+
+    // accessors for left and right element ID
+    AffAccROPoint1 acc_elem_ID[2];
+    acc_elem_ID[0] = AffAccROPoint1(regions[0], MeshData::FID_MESH_IFACE_ELEMLID);
+    acc_elem_ID[1] = AffAccROPoint1(regions[0], MeshData::FID_MESH_IFACE_ELEMRID);
+    // accessors for left and right element type
+    AffAccWDElemType acc_elem_type[2];
+    acc_elem_type[0] = AffAccWDElemType(regions[1], MeshData::FID_MESH_IFACE_ELEMLTYPE);
+    acc_elem_type[1] = AffAccWDElemType(regions[1], MeshData::FID_MESH_IFACE_ELEMRTYPE);
+
+    Domain domain = runtime->get_index_space_domain(ctx, task->regions[0].region.get_index_space());
+    for (Domain::DomainPointIterator itr(domain); itr; itr++) {
+        const Point<1> elemL = acc_elem_ID[0][*itr];
+        const Point<1> elemR = acc_elem_ID[1][*itr];
+
+        if (!runtime->safe_cast(ctx, elemL, priv_elem_lsr).is_null()) {
+            acc_elem_type[0][*itr] = ElemType::Private;
+        }
+        else {
+            assert(!runtime->safe_cast(ctx, elemL, shared_elem_lsr).is_null());
+            acc_elem_type[0][*itr] = ElemType::Shared;
+        }
+
+        if (!runtime->safe_cast(ctx, elemR, priv_elem_lsr).is_null()) {
+            acc_elem_type[1][*itr] = ElemType::Private;
+        }
+        else if (!runtime->safe_cast(ctx, elemR, shared_elem_lsr).is_null()) {
+            acc_elem_type[1][*itr] = ElemType::Shared;
+        }
+        else {
+            acc_elem_type[1][*itr] = ElemType::Ghost;
+        }
+    }
+}
+
 void zero_field_task(const Task *task, const std::vector<PhysicalRegion> &regions,
                      Context ctx, Runtime *runtime) {
     AffAccWDrtype acc(regions[0], SolutionData::FID_SOL_RESIDUAL, N_REDOP*sizeof(rtype));
@@ -49,19 +96,50 @@ rtype compute_error_task(const Task *task, const std::vector<PhysicalRegion> &re
     return result;
 }
 
+void update_iface_residual(const int nCoeff, const Point<1> elem, ElemType type,
+                           const vector<rtype> &res, AffAccRWrtype priv, AccReductionSum shared,
+                           AccReductionSum ghost) {
+    switch(type) {
+        case ElemType::Private: {
+            rtype *res_field = priv.ptr(elem);
+            for (int i=0; i<N_REDOP; i++) res_field[i] += res[i];
+            break;
+        }
+        case ElemType::Shared: {
+            ReductionSum<N_REDOP>::LHS *lhs = shared.ptr(elem);
+            ReductionSum<N_REDOP>::RHS rhs(res);
+            ReductionSum<N_REDOP>::apply<true>(*lhs, rhs);
+            break;
+        }
+        case ElemType::Ghost: {
+            ReductionSum<N_REDOP>::LHS *lhs = ghost.ptr(elem);
+            ReductionSum<N_REDOP>::RHS rhs(res);
+            ReductionSum<N_REDOP>::apply<true>(*lhs, rhs);
+            break;
+        }
+        default:
+            assert(false);
+    }
+}
+
 void compute_iface_residual_task(const Task *task,  const vector<PhysicalRegion> &regions,
-                                 Context ctx, Runtime *runtime) {
+        Context ctx, Runtime *runtime) {
     int nIter = *(const int *)task->args;
 
+    // left and right element IDs
     AffAccROPoint1 acc_face_elemID[2];
-    acc_face_elemID[0] = AffAccROPoint1(regions[0], MeshData::FID_MESH_IFACE_ELEMLID,
-                                        sizeof(Point<1>));
-    acc_face_elemID[1] = AffAccROPoint1(regions[0], MeshData::FID_MESH_IFACE_ELEMRID,
-                                        sizeof(Point<1>));
-    // reduction accessor for the residual
-    ReductionAccessor<ReductionSum<N_REDOP>, true, // exclusive
-            1, coord_t, Realm::AffineAccessor<ReductionSum<N_REDOP>::LHS, 1, coord_t> >
-            acc_residual(regions[1], SolutionData::FID_SOL_RESIDUAL, 1);
+    acc_face_elemID[0] = AffAccROPoint1(regions[0], MeshData::FID_MESH_IFACE_ELEMLID, sizeof(Point<1>));
+    acc_face_elemID[1] = AffAccROPoint1(regions[0], MeshData::FID_MESH_IFACE_ELEMRID, sizeof(Point<1>));
+    // accessors for left and right element type
+    AffAccROElemType acc_elem_type[2];
+    acc_elem_type[0] = AffAccROElemType(regions[0], MeshData::FID_MESH_IFACE_ELEMLTYPE, sizeof(ElemType));
+    acc_elem_type[1] = AffAccROElemType(regions[0], MeshData::FID_MESH_IFACE_ELEMRTYPE, sizeof(ElemType));
+    // accessor for the residual, private
+    AffAccRWrtype acc_priv_res(regions[3], SolutionData::FID_SOL_RESIDUAL, N_REDOP*sizeof(rtype));
+    // accessor for the residual, shared
+    AccReductionSum acc_shared_res(regions[4], SolutionData::FID_SOL_RESIDUAL, 1);
+    // accessor for the residual, ghost
+    AccReductionSum acc_ghost_res(regions[5], SolutionData::FID_SOL_RESIDUAL, 1);
 
     Domain domain = runtime->get_index_space_domain(ctx, task->regions[0].region.get_index_space());
     for (Domain::DomainPointIterator itr(domain); itr; itr++) {
@@ -72,14 +150,10 @@ void compute_iface_residual_task(const Task *task,  const vector<PhysicalRegion>
         int i0 = (int) itr.p[0];
         for (int k=0; k<N_REDOP; k++) tmp[k] = (rtype) (i0+k) / (rtype) (i0+1) / (rtype) nIter;
 
-        // update left element residual
-        ReductionSum<N_REDOP>::LHS *lhs = acc_residual.ptr(elemL);
-        ReductionSum<N_REDOP>::RHS rhs(tmp);
-        ReductionSum<N_REDOP>::apply<true>(*lhs, rhs);
-        // update right element residual
-        lhs = acc_residual.ptr(elemR);
-        rhs = ReductionSum<N_REDOP>::RHS(tmp);
-        ReductionSum<N_REDOP>::apply<true>(*lhs, rhs);
+        update_iface_residual(N_REDOP, elemL, acc_elem_type[0][*itr], tmp,
+                              acc_priv_res, acc_shared_res, acc_ghost_res);
+        update_iface_residual(N_REDOP, elemR, acc_elem_type[1][*itr], tmp,
+                              acc_priv_res, acc_shared_res, acc_ghost_res);
     }
 }
 
@@ -120,6 +194,12 @@ void check_task(const Task *task,  const vector<PhysicalRegion> &regions, Contex
 }
 
 void SolutionData::register_tasks() {
+    {
+        TaskVariantRegistrar registrar(TAG_LEFT_RIGHT_ELEMENT_TASK_ID, "tag_left_right_element_task");
+        registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
+        registrar.set_leaf();
+        Runtime::preregister_task_variant<tag_left_right_element_task> (registrar, "tag_left_right_element_task");
+    }
     {
         TaskVariantRegistrar registrar(ZERO_FIELD_TASK_ID, "zero_field_task");
         registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
@@ -190,6 +270,30 @@ void SolutionData::create_solution_region(const MeshData &mesh_data) {
         mesh_data.elem_with_halo_lp.get_index_partition());
     runtime->attach_name(elem_with_halo_lp, "sol_elem_with_halo_logical_partition");
 
+    // create logical partitions for private, shared and ghost elements
+    priv_elem_lp = runtime->get_logical_partition(ctx, elem_lr, mesh_data.priv_elem_ip);
+    runtime->attach_name(priv_elem_lp, "solution_private_logical_partition");
+    shared_elem_lp = runtime->get_logical_partition(ctx, elem_lr, mesh_data.shared_elem_ip);
+    runtime->attach_name(shared_elem_lp, "solution_shared_logical_partition");
+    ghost_elem_lp = runtime->get_logical_partition(ctx, elem_lr, mesh_data.ghost_elem_ip);
+    runtime->attach_name(ghost_elem_lp, "solution_ghost_logical_partition");
+
+    TagLeftRightElementArgs args(priv_elem_lp, shared_elem_lp);
+    IndexLauncher index_launcher(TAG_LEFT_RIGHT_ELEMENT_TASK_ID, domain,
+            TaskArgument(&args, sizeof(TagLeftRightElementArgs)), ArgumentMap());
+    // left and right element ID
+    RegionRequirement req(mesh_data.iface_lp, 0, READ_ONLY, EXCLUSIVE, mesh_data.iface_lr);
+    req.add_field(MeshData::FID_MESH_IFACE_ELEMLID);
+    req.add_field(MeshData::FID_MESH_IFACE_ELEMRID);
+    index_launcher.add_region_requirement(req);
+    // left and right element type
+    req = RegionRequirement(mesh_data.iface_lp, 0, WRITE_DISCARD, EXCLUSIVE, mesh_data.iface_lr);
+    req.add_field(MeshData::FID_MESH_IFACE_ELEMLTYPE);
+    req.add_field(MeshData::FID_MESH_IFACE_ELEMRTYPE);
+    index_launcher.add_region_requirement(req);
+    // run
+    runtime->execute_index_space(ctx, index_launcher);
+
     domain = Domain::from_rect<1>(Arrays::Rect<1>(Arrays::Point<1>(0),
         Arrays::Point<1>(mesh_data.nPart-1)));
 }
@@ -207,17 +311,26 @@ void SolutionData::zero_field() {
 
 void SolutionData::compute_iface_residual(const int nIter, const MeshData &mesh_data) {
     IndexLauncher index_launcher(COMPUTE_IFACE_RESIDUAL_TASK_ID, domain,
-            TaskArgument(&nIter, sizeof(int)), ArgumentMap());
+                                 TaskArgument(&nIter, sizeof(int)), ArgumentMap());
     // mesh region: iface data
     RegionRequirement req(mesh_data.iface_lp, 0, READ_ONLY, EXCLUSIVE, mesh_data.iface_lr);
-    vector<FieldID> fields{MeshData::FID_MESH_IFACE_ELEMLID,
-                           MeshData::FID_MESH_IFACE_ELEMRID,
-                          };
+    vector<FieldID> fields{ MeshData::FID_MESH_IFACE_ELEMLID,
+                            MeshData::FID_MESH_IFACE_ELEMRID,
+                            MeshData::FID_MESH_IFACE_ELEMLTYPE,
+                            MeshData::FID_MESH_IFACE_ELEMRTYPE, };
     req.add_fields(fields);
     index_launcher.add_region_requirement(req);
-    // solution region: residual
-    req = RegionRequirement(elem_with_halo_lp, 0, 1, EXCLUSIVE, elem_lr);
-    req.add_field(SolutionData::FID_SOL_RESIDUAL);
+    // solution region: residual, private
+    req = RegionRequirement(priv_elem_lp, 0, READ_WRITE, EXCLUSIVE, elem_lr);
+    req.add_field(FID_SOL_RESIDUAL);
+    index_launcher.add_region_requirement(req);
+    // solution region: residual, shared
+    req = RegionRequirement(shared_elem_lp, 0, 1, EXCLUSIVE, elem_lr);
+    req.add_field(FID_SOL_RESIDUAL);
+    index_launcher.add_region_requirement(req);
+    // solution region: residual, ghost
+    req = RegionRequirement(ghost_elem_lp, 0, 1, EXCLUSIVE, elem_lr);
+    req.add_field(FID_SOL_RESIDUAL);
     index_launcher.add_region_requirement(req);
     // run
     runtime->execute_index_space(ctx, index_launcher);

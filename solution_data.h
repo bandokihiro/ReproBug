@@ -44,6 +44,14 @@ class SolutionData : public LegionData {
      */
     void clean_up();
 
+    struct TagLeftRightElementArgs {
+        TagLeftRightElementArgs(Legion::LogicalPartition priv, Legion::LogicalPartition shared)
+                : priv_elem_lp(priv), shared_elem_lp(shared) {}
+
+        Legion::LogicalPartition priv_elem_lp;
+        Legion::LogicalPartition shared_elem_lp;
+    };
+
     /*! \brief Create solutions regions
      *
      * The fields are not initialized yet after this method is called.
@@ -67,6 +75,10 @@ class SolutionData : public LegionData {
     Legion::LogicalPartition elem_lp; //!< element logical partition
     Legion::LogicalPartition elem_with_halo_lp; //!< element logical partition with halo
     Legion::Domain domain; //!< partition index domain
+
+    Legion::LogicalPartition priv_elem_lp; //!< private element logical partition
+    Legion::LogicalPartition shared_elem_lp; //!< shared element logical partition
+    Legion::LogicalPartition ghost_elem_lp; //!< ghost element logical partition
 };
 
 #endif //DG_SOLUTION_DATA_H

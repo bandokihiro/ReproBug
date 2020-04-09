@@ -7,6 +7,7 @@
 
 #include "legion.h"
 #include "types.h"
+#include "redop.h"
 
 /*! \brief Read-only accesor for int data
  *
@@ -104,5 +105,15 @@ typedef Legion::FieldAccessor< READ_ONLY, Legion::Point<1>, 1, Legion::coord_t,
  */
 typedef Legion::FieldAccessor< WRITE_DISCARD, Legion::Point<1>, 1, Legion::coord_t,
     Realm::AffineAccessor<Legion::Point<1>, 1, Legion::coord_t> > AffAccWDPoint1;
+
+
+typedef Legion::FieldAccessor< READ_ONLY, ElemType , 1, Legion::coord_t,
+        Realm::AffineAccessor<ElemType , 1, Legion::coord_t> > AffAccROElemType;
+
+typedef Legion::FieldAccessor< WRITE_DISCARD, ElemType , 1, Legion::coord_t,
+        Realm::AffineAccessor<ElemType , 1, Legion::coord_t> > AffAccWDElemType;
+
+typedef ReductionAccessor<ReductionSum<N_REDOP>, true, // exclusive
+        1, coord_t, Realm::AffineAccessor<ReductionSum<N_REDOP>::LHS, 1, coord_t> > AccReductionSum;
 
 #endif //DG_TYPEDEFS_H

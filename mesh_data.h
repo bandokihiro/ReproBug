@@ -8,6 +8,12 @@
 #include "legion.h"
 #include "mesh.h"
 
+enum class ElemType {
+    Private,
+    Shared,
+    Ghost,
+};
+
 class LegionData {
 public:
     /*! \brief Constructor
@@ -37,6 +43,9 @@ class MeshData : public LegionData {
         FID_MESH_ELEM_GHOST_BITMASK, //!< bitmask discribing the subregions that are adjacent to the element
         FID_MESH_IFACE_ELEMLID, //!< interior face's left element
         FID_MESH_IFACE_ELEMRID, //!< interior face's right element
+
+        FID_MESH_IFACE_ELEMLTYPE, //!< type of the left element
+        FID_MESH_IFACE_ELEMRTYPE, //!< type of the left element
     };
 
     /*! \brief Constructor

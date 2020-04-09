@@ -103,6 +103,8 @@ void MeshData::init_mesh_region_iFace(const Mesh &mesh) {
     FieldAllocator allocator = runtime->create_field_allocator(ctx, fs);
     allocator.allocate_field(sizeof(Point<1>), FID_MESH_IFACE_ELEMLID);
     allocator.allocate_field(sizeof(Point<1>), FID_MESH_IFACE_ELEMRID);
+    allocator.allocate_field(sizeof(ElemType), FID_MESH_IFACE_ELEMLTYPE);
+    allocator.allocate_field(sizeof(ElemType), FID_MESH_IFACE_ELEMRTYPE);
 
     runtime->attach_name(fs, FID_MESH_IFACE_ELEMLID, "mesh_iface_left_element_id");
     runtime->attach_name(fs, FID_MESH_IFACE_ELEMRID, "mesh_iface_right_element_ID");
