@@ -30,7 +30,8 @@ void top_level_task(const Task *task, const std::vector<PhysicalRegion> &regions
 
     MeshData mesh_data(ctx, runtime, logger);
     mesh_data.init_mesh_region(mesh);
-    mesh_data.partition_mesh_region(mesh.nPart);
+    mesh_data.partition_mesh_region();
+    mesh_data.reinit_mesh_region(mesh);
     runtime->print_once(ctx, stdout, "Mesh region initialized and partitioned\n");
 
 

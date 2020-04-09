@@ -34,6 +34,7 @@ class MeshData : public LegionData {
      */
     enum FieldIDs {
         FID_MESH_ELEM_PARTID, //!< element partition ID
+        FID_MESH_ELEM_GHOST_BITMASK, //!< bitmask discribing the subregions that are adjacent to the element
         FID_MESH_IFACE_ELEMLID, //!< interior face's left element
         FID_MESH_IFACE_ELEMRID, //!< interior face's right element
     };
@@ -66,7 +67,9 @@ class MeshData : public LegionData {
      *
      * @param nPart number of partitions
      */
-    void partition_mesh_region(const int nPart);
+    void partition_mesh_region();
+
+    void reinit_mesh_region(const Mesh &mesh);
 
     /*! Check partitioning
      *
@@ -77,12 +80,19 @@ class MeshData : public LegionData {
 
     int nElem; //!< number of elements
     int nPart; //!< number of partitions
+    int nIface;
+
     Legion::LogicalRegion elem_lr; //!< element logical region
     Legion::LogicalPartition elem_lp; //!< element logical partition without halo elements
     Legion::LogicalPartition elem_with_halo_lp; //!< element logical partition with halo elements
     Legion::LogicalRegion iface_lr; //!< interior face logical region
     Legion::LogicalPartition iface_lp; //!< interior face logical partition
     Legion::LogicalPartition iface_all_lp; //!< all interior face logical partition
+
+    Legion::IndexSpace all_shared_is; //!< index space for all elements that are shared
+    Legion::IndexPartition priv_elem_ip; //!< index partition for private elements
+    Legion::IndexPartition shared_elem_ip; //!< index partition for shared elements
+    Legion::IndexPartition ghost_elem_ip; //!< index partition for shared elements
 
   private:
     /*! \brief Initialize the mesh element region
