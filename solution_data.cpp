@@ -135,11 +135,11 @@ void compute_iface_residual_task(const Task *task,  const vector<PhysicalRegion>
     acc_elem_type[0] = AffAccROElemType(regions[0], MeshData::FID_MESH_IFACE_ELEMLTYPE, sizeof(ElemType));
     acc_elem_type[1] = AffAccROElemType(regions[0], MeshData::FID_MESH_IFACE_ELEMRTYPE, sizeof(ElemType));
     // accessor for the residual, private
-    AffAccRWrtype acc_priv_res(regions[3], SolutionData::FID_SOL_RESIDUAL, N_REDOP*sizeof(rtype));
+    AffAccRWrtype acc_priv_res(regions[1], SolutionData::FID_SOL_RESIDUAL, N_REDOP*sizeof(rtype));
     // accessor for the residual, shared
-    AccReductionSum acc_shared_res(regions[4], SolutionData::FID_SOL_RESIDUAL, 1);
+    AccReductionSum acc_shared_res(regions[2], SolutionData::FID_SOL_RESIDUAL, 1);
     // accessor for the residual, ghost
-    AccReductionSum acc_ghost_res(regions[5], SolutionData::FID_SOL_RESIDUAL, 1);
+    AccReductionSum acc_ghost_res(regions[3], SolutionData::FID_SOL_RESIDUAL, 1);
 
     Domain domain = runtime->get_index_space_domain(ctx, task->regions[0].region.get_index_space());
     for (Domain::DomainPointIterator itr(domain); itr; itr++) {
@@ -278,6 +278,9 @@ void SolutionData::create_solution_region(const MeshData &mesh_data) {
     ghost_elem_lp = runtime->get_logical_partition(ctx, elem_lr, mesh_data.ghost_elem_ip);
     runtime->attach_name(ghost_elem_lp, "solution_ghost_logical_partition");
 
+    domain = Domain::from_rect<1>(Arrays::Rect<1>(Arrays::Point<1>(0),
+            Arrays::Point<1>(mesh_data.nPart-1)));
+
     TagLeftRightElementArgs args(priv_elem_lp, shared_elem_lp);
     IndexLauncher index_launcher(TAG_LEFT_RIGHT_ELEMENT_TASK_ID, domain,
             TaskArgument(&args, sizeof(TagLeftRightElementArgs)), ArgumentMap());
@@ -293,9 +296,6 @@ void SolutionData::create_solution_region(const MeshData &mesh_data) {
     index_launcher.add_region_requirement(req);
     // run
     runtime->execute_index_space(ctx, index_launcher);
-
-    domain = Domain::from_rect<1>(Arrays::Rect<1>(Arrays::Point<1>(0),
-        Arrays::Point<1>(mesh_data.nPart-1)));
 }
 
 void SolutionData::zero_field() {

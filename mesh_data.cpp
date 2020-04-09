@@ -68,6 +68,7 @@ void MeshData::init_mesh_region_elem(const Mesh &mesh) {
     // define region requirement that determines what to map as well as privileges
     RegionRequirement req(elem_lr, WRITE_DISCARD, EXCLUSIVE, elem_lr);
     req.add_field(FID_MESH_ELEM_PARTID);
+    req.add_field(FID_MESH_ELEM_GHOST_BITMASK);
 
     InlineLauncher inline_launcher(req);
     PhysicalRegion pr = runtime->map_region(ctx, inline_launcher);

@@ -39,7 +39,7 @@ class MeshData : public LegionData {
      * Offset of 100 in order to avod enum collisions with fields from other regions.
      */
     enum FieldIDs {
-        FID_MESH_ELEM_PARTID, //!< element partition ID
+        FID_MESH_ELEM_PARTID=100, //!< element partition ID
         FID_MESH_ELEM_GHOST_BITMASK, //!< bitmask discribing the subregions that are adjacent to the element
         FID_MESH_IFACE_ELEMLID, //!< interior face's left element
         FID_MESH_IFACE_ELEMRID, //!< interior face's right element
