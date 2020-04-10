@@ -46,6 +46,7 @@ void top_level_task(const Task *task, const std::vector<PhysicalRegion> &regions
 
     for (int i=0; i<nIter; i++) {
         solution_data.compute_iface_residual(nIter, mesh_data);
+        rtype sum = solution_data.compute_error(); // to force reduction to be executed
     }
     rtype sum = solution_data.compute_error();
     char msg2[1000];
