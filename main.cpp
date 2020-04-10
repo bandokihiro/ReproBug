@@ -32,6 +32,10 @@ void top_level_task(const Task *task, const std::vector<PhysicalRegion> &regions
     mesh_data.init_mesh_region(mesh);
     mesh_data.partition_mesh_region();
     mesh_data.reinit_mesh_region(mesh);
+
+    // mesh_data.check_bitmasks_shared();
+    // mesh_data.check_bitmasks_ghost();
+
     runtime->print_once(ctx, stdout, "Mesh region initialized and partitioned\n");
 
 

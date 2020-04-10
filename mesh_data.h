@@ -79,13 +79,8 @@ class MeshData : public LegionData {
     void partition_mesh_region();
 
     void reinit_mesh_region(const Mesh &mesh);
-
-    /*! Check partitioning
-     *
-     * Print the partition data. Only used for verification purposes. Use it on a small mesh and in
-     * serial.
-     */
-    void check_partitioning();
+    void check_bitmasks_shared();
+    void check_bitmasks_ghost();
 
     int nElem; //!< number of elements
     int nPart; //!< number of partitions

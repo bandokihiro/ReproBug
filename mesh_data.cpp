@@ -359,4 +359,119 @@ void MeshData::reinit_mesh_region(const Mesh &mesh) {
      */
 
     partition_mesh_region();
+
+    // fill with ghost IDs
+    {
+        // define region requirement that determines what to map as well as privileges
+        RegionRequirement req(elem_lr, WRITE_DISCARD, EXCLUSIVE, elem_lr);
+        req.add_field(FID_MESH_ELEM_GHOST_BITMASK);
+
+        InlineLauncher inline_launcher(req);
+        PhysicalRegion pr = runtime->map_region(ctx, inline_launcher);
+        pr.wait_until_valid(true);
+
+        const FieldAccessor< WRITE_DISCARD, bitset<N_SUBREGIONS_MAX>, 1, coord_t,
+                Realm::AffineAccessor<bitset<N_SUBREGIONS_MAX>, 1, coord_t> >
+                acc_ghost_bitmask(pr, FID_MESH_ELEM_GHOST_BITMASK, sizeof(bitset<N_SUBREGIONS_MAX>), false, true);
+
+        // initialize
+        Rect<1> rect(0, nElem-1);
+        // loop over elements
+        for (PointInRectIterator<1> pir(rect); pir(); pir++) {
+            acc_ghost_bitmask[*pir].reset();
+        }
+
+        runtime->unmap_region(ctx, pr);
+    }
+    {
+        LogicalPartition ghost_elem_lp = runtime->get_logical_partition(ctx, elem_lr, ghost_elem_ip);
+        for (Domain::DomainPointIterator itr(domain); itr; itr++) {
+            Point<1> p = *itr;
+
+            // more sophisticated bitmask method
+            LogicalRegion ghost_elem_lsr =
+                    runtime->get_logical_subregion_by_color(ctx, ghost_elem_lp, itr.p);
+            RegionRequirement req(ghost_elem_lsr, READ_WRITE, EXCLUSIVE, elem_lr);
+            req.add_field(FID_MESH_ELEM_GHOST_BITMASK);
+            InlineLauncher inline_launcher(req);
+            PhysicalRegion pr = runtime->map_region(ctx, inline_launcher);
+            pr.wait_until_valid(true /*silence warnings*/);
+
+            const FieldAccessor< READ_WRITE, bitset<N_SUBREGIONS_MAX>, 1, coord_t,
+                    Realm::AffineAccessor<bitset<N_SUBREGIONS_MAX>, 1, coord_t> >
+                    acc_ghost_bitmask(pr, FID_MESH_ELEM_GHOST_BITMASK, sizeof(bitset<N_SUBREGIONS_MAX>), false, true);
+            Domain d = runtime->get_index_space_domain(ctx, ghost_elem_lsr.get_index_space());
+            for (Domain::DomainPointIterator i(d); i; i++) {
+                acc_ghost_bitmask[*i][p[0]] = true;
+            }
+
+            runtime->unmap_region(ctx, pr);
+        }
+    }
+}
+
+void MeshData::check_bitmasks_shared() {
+    LogicalPartition shared_elem_lp = runtime->get_logical_partition(ctx, elem_lr, shared_elem_ip);
+    for (Domain::DomainPointIterator itr(domain); itr; itr++) {
+        LogicalRegion shared_elem_lsr =
+                runtime->get_logical_subregion_by_color(ctx, shared_elem_lp, itr.p);
+
+        RegionRequirement req(shared_elem_lsr, READ_ONLY, EXCLUSIVE, elem_lr);
+        req.add_field(FID_MESH_ELEM_GHOST_BITMASK);
+
+        InlineLauncher inline_launcher(req);
+        PhysicalRegion pr = runtime->map_region(ctx, inline_launcher);
+        pr.wait_until_valid(true /*silence warnings*/);
+
+        const FieldAccessor< READ_ONLY, bitset<N_SUBREGIONS_MAX>, 1, coord_t,
+                Realm::AffineAccessor<bitset<N_SUBREGIONS_MAX>, 1, coord_t> >
+                acc_ghost_bitmask(pr, FID_MESH_ELEM_GHOST_BITMASK, sizeof(bitset<N_SUBREGIONS_MAX>), false, true);
+
+        Domain d = runtime->get_index_space_domain(ctx, shared_elem_lsr.get_index_space());
+        cout << "Checking shared elements in subregion " << itr.p[0] << endl;
+        for (Domain::DomainPointIterator i(d); i; i++) {
+            cout << "Element " << i.p[0] << " shared with subregions ";
+            for (int j=0; j<nPart; j++) {
+                if (acc_ghost_bitmask[*i][j]) {
+                    cout << j << " ";
+                }
+            }
+            cout << endl;
+        }
+
+        runtime->unmap_region(ctx, pr);
+    }
+}
+
+void MeshData::check_bitmasks_ghost() {
+    LogicalPartition ghost_elem_lp = runtime->get_logical_partition(ctx, elem_lr, ghost_elem_ip);
+    for (Domain::DomainPointIterator itr(domain); itr; itr++) {
+        LogicalRegion ghost_elem_lsr =
+                runtime->get_logical_subregion_by_color(ctx, ghost_elem_lp, itr.p);
+
+        RegionRequirement req(ghost_elem_lsr, READ_ONLY, EXCLUSIVE, elem_lr);
+        req.add_field(FID_MESH_ELEM_GHOST_BITMASK);
+
+        InlineLauncher inline_launcher(req);
+        PhysicalRegion pr = runtime->map_region(ctx, inline_launcher);
+        pr.wait_until_valid(true /*silence warnings*/);
+
+        const FieldAccessor< READ_ONLY, bitset<N_SUBREGIONS_MAX>, 1, coord_t,
+                Realm::AffineAccessor<bitset<N_SUBREGIONS_MAX>, 1, coord_t> >
+                acc_ghost_bitmask(pr, FID_MESH_ELEM_GHOST_BITMASK, sizeof(bitset<N_SUBREGIONS_MAX>), false, true);
+
+        Domain d = runtime->get_index_space_domain(ctx, ghost_elem_lsr.get_index_space());
+        cout << "Checking ghost elements in subregion " << itr.p[0] << endl;
+        for (Domain::DomainPointIterator i(d); i; i++) {
+            cout << "Element " << i.p[0] << " ghost for subregions ";
+            for (int j=0; j<nPart; j++) {
+                if (acc_ghost_bitmask[*i][j]) {
+                    cout << j << " ";
+                }
+            }
+            cout << endl;
+        }
+
+        runtime->unmap_region(ctx, pr);
+    }
 }
