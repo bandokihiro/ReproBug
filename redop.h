@@ -57,11 +57,11 @@ const typename ReductionSum<n>::LHS ReductionSum<n>::identity = ReductionSum<n>:
 // N_REDOP = ns*nb
 // #define N_REDOP 4  // quad, p=0
 // #define N_REDOP 16 // quad, p=1
-#define N_REDOP 36 // quad, p=2
+// #define N_REDOP 36 // quad, p=2
 // #define N_REDOP 64 // quad, p=3
-//#define N_REDOP 5 // hex, p = 0
-//#define N_REDOP 40 // hex, p = 1
-//#define N_REDOP 135// hex, p = 2
-//#define N_REDOP 320 // hex, p = 3
+// #define N_REDOP 5 // hex, p = 0
+// #define N_REDOP 40 // hex, p = 1
+#define N_REDOP 135// hex, p = 2
+// #define N_REDOP 320 // hex, p = 3
 
 #endif //DG_REDOP_H

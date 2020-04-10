@@ -1,0 +1,4 @@
+[Mesh]
+file        = "meshes/3D_box_2pi_16.h5"
+npartitions = 16
+iter        = 60
