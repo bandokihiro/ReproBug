@@ -469,7 +469,7 @@ void MeshData::check_bitmasks_ghost() {
                     cout << j << " ";
                 }
             }
-            cout << endl;
+            cout << "- " << acc_ghost_bitmask[*i].to_ulong() << endl;
         }
 
         runtime->unmap_region(ctx, pr);
