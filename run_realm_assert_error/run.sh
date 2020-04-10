@@ -31,7 +31,7 @@ mkdir -p logs
 #export MPI_DSM_DISTRIBUTE=0
 #export GASNET_ODP_VERBOSE=0
 
-CMD="mpiexec -np $NRANK -ppn $NRANK_PER_NODE $EXEC $FLAGS -ll:cpu $NCPU_PER_RANK"
+CMD="mpirun -n $NRANK -H n0000,n0001 -npernode $NRANK_PER_NODE -bind-to none $EXEC $FLAGS -ll:cpu $NCPU_PER_RANK"
 
 echo $CMD
 $CMD
